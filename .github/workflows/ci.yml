@@ -1,0 +1,48 @@
+name: CI
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint (markdown + yaml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install yamllint
+        run: pip install yamllint
+      - name: yamllint (relaxed)
+        run: yamllint -d relaxed .
+      - name: Check markdown present
+        run: |
+          test -f spec.md
+          test -f README.md
+          test -f docs/protocol.md
+          test -f docs/credential-format.md
+          test -f docs/image-binding.md
+          test -f docs/verification.md
+          test -f docs/consumption.md
+          test -f docs/policy.md
+          echo "all docs present ✓"
+      - name: Link check (no broken relative links)
+        run: |
+          for f in spec.md README.md docs/*.md; do
+            echo "== $f =="
+            grep -oE '\[[^]]*\]\([^)]*\.md[^)]*\)' "$f" | while read -r link; do
+              path=$(echo "$link" | sed -E 's/.*\(([^)#]+).*/\1/')
+              # ignore external http
+              case "$path" in http*) continue;; esac
+              # resolve relative to $f's dir
+              dir=$(dirname "$f")
+              if [ "$dir" = "." ]; then target="$path"; else target="$dir/$path"; fi
+              # strip leading ./
+              target=$(echo "$target" | sed 's|^\./||')
+              if [ ! -f "$target" ]; then
+                echo "::error::broken link in $f: $link -> $target not found"
+                exit 1
+              fi
+            done
+          done
+          echo "links ok ✓"

@@ -1,0 +1,11 @@
+# spec is markdown + CI artifacts only — no binaries
+target/
+*.pdf
+.DS_Store
+*.swp
+*~
+.env
+
+# local preview
+_site/
+public/
