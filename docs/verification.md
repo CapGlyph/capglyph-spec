@@ -1,6 +1,6 @@
 # Verification — Detection, Extraction, and Decision
 
-**Spec:** 1.0.0 · **Track:** Verification (CTX-0041)
+**Spec:** 1.0.1 · **Track:** Verification (CTX-0041)
 
 ---
 
@@ -67,8 +67,8 @@ Vectors in `tampered/` flip `F[3,4]` bits or `LH` pairs; valid `HMAC` may still 
 - `E_AUTH_FAILED` — framing tag mismatch (frame-level auth).
 - `E_TAMPERED` — tag ok but lattice correlation/ECC fails (signal-level tamper).
 - `E_GEOMETRY_MISMATCH` — registration failed, cover not found, or `insufficient_geometry`.
-- `E_MALFORMED_FRAME` — CBOR structure broken before correlation.
-- See `error-semantics.md` for the precedence ladder (version → malformed → auth → policy → tampered).
+- `E_MALFORMED_FRAME` — after a valid frame tag, the outer deterministic CBOR structure is invalid.
+- See `error-semantics.md` for the authenticated envelope precedence ladder (tag boundary → auth → deterministic outer CBOR → version → Credential semantics → policy). Carrier/ECC failures that prevent recovery of sealed bytes remain signal-layer errors such as `E_TAMPERED`.
 
 ## 8. References
 

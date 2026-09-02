@@ -1,6 +1,6 @@
 # Image Binding — Geometry, Lattice, and Normalization
 
-**Spec:** 1.0.0 · **Track:** Image Binding (CTX-0041)
+**Spec:** 1.0.1 · **Track:** Image Binding (CTX-0041)
 
 ---
 
@@ -48,7 +48,7 @@ Optional and non-authoritative — geometry is a _hint_ for where to place coeff
 - `Prng` — `RNG(stable_seed)` over the full block grid, budget-matched to `Skeleton` count for fair comparison.
 - `Edge` — `Sobel ≥128`, rank-broken, budget-enforcing, fail-closed with `E_INSUFFICIENT_CAPACITY` when geometry is insufficient (`edge_blocks_with_budget`).
 
-All three are implemented for `DCT`. **`DWT` currently ignores `_placement`** (dead code, `embed` is `Skeleton`-only and `Edge`/`Prng` are fail-closed) — this is a known wiring gap recorded in `capacity-robustness…` §4 and in spec §5.2. Policy: do not claim DWT placement benchmarks until wiring + `cargo test` coverage lands.
+All three are implemented for `DCT`. `DWT` v1 implements only `Skeleton`; requesting `Edge` or `Prng` `MUST` fail closed rather than silently ignoring the requested placement. This is a known wiring gap recorded in `capacity-robustness…` §4 and in spec §5.2. Policy: do not claim DWT placement benchmarks until wiring + `cargo test` coverage lands.
 
 Intended default (post-v1.1) is `Adaptive eligible-map + keyed PRNG`:
 
@@ -79,7 +79,7 @@ This will be more invisible than blind `Prng` and more unpredictable than fixed 
 
 Spec enforces the **fail-closed capacity check** — every embed `MUST` compute `blocks_needed = 512 + 8 * ecc_coded_bits` and return `E_INSUFFICIENT_CAPACITY` when `blocks_needed > N_DCT` (DCT) or `coeffs_needed > LH_size` (DWT). Vectors must include at least one `invalid` case exercising this.
 
-Measured ceilings (math, not promise): `512×512` DCT `4096` blocks → `56 B` logical ceiling; `1024×1024` `16384` → `248 B` logical. Robust capacity after `54 B` sealed + ECC is in `capacity-robustness…` §3 (512 DCT `BCH t=3` FER `0.05/0.10` at `q75/q50`; `1024×` `FER 0.0` all `JPEG`).
+Measured ceilings (math, not promise): `512×512` DCT `4096` blocks → `56 B` logical ceiling; `1024×1024` `16384` → `248 B` logical. The canonical v1 Credential envelope is `57 B` before ECC (`6 B` outer CBOR + `19 B` payload + `32 B` tag); older `54 B` measurements used a legacy raw-token fixture and are not conforming v1 capacity claims. The historical robustness ladder remains useful only as an implementation baseline pending rerun with the canonical envelope.
 
 ## 7. Secret-layer binding
 

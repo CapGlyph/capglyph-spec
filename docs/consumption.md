@@ -1,6 +1,6 @@
 # Consumption — Atomic Consume, Idempotency, and Audit
 
-**Spec:** 1.0.0 · **Track:** Consumption (CTX-0041) · **Normative for** `capglyphd` / `capglyph-server`
+**Spec:** 1.0.1 · **Track:** Consumption (CTX-0041) · **Normative for** `capglyphd` / `capglyph-server`
 
 ---
 

@@ -21,6 +21,7 @@ jobs:
           test -f README.md
           test -f docs/protocol.md
           test -f docs/credential-format.md
+          test -f docs/interoperability-profile.md
           test -f docs/image-binding.md
           test -f docs/verification.md
           test -f docs/consumption.md

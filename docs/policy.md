@@ -1,6 +1,6 @@
 # Policy — Scope, Revocation, Expiry, and Key Management
 
-**Spec:** 1.0.0 · **Track:** Policy (CTX-0041)
+**Spec:** 1.0.1 · **Track:** Policy (CTX-0041)
 
 ---
 
@@ -35,6 +35,7 @@ Per `infrastructure-positioning.md`, CapGlyph is **infrastructure** (Core/Securi
 ## 6. Key rotation (`kid` / `key_id`)
 
 - `credentials.key_id TEXT NOT NULL` (`kid`) references `KMS` key material (`K_embed`/`K_mac`/`K_object` split per `keying::KeyMaterial`). Rotation is **not** in-band in the image — the DB row selects the key; the image only carries `token_id`.
+- When roles are derived, implementations `MUST` use the RFC 5869 schedule and exact domain strings in `interoperability-profile.md` §3. They `MUST NOT` substitute an all-zero key, reuse one role for another, or fall back to a process default when `kid` lookup fails; missing material is `E_KEY_NOT_FOUND` before envelope processing.
 - Rotation flow: `KMS` generates new `kid` → new issuer config `kid = cred-2026-09` → new credentials seal with `K_mac(new_kid)` → verifiers `MUST` accept both old and new `kids` during the overlap window, looked up from the credential row (`kid` in `SELECT`).
 - Wire future (v2): `FrameHeader` gains an explicit `kid` byte or CBOR string so offline verification can select the signing key without a DB hit. v1 has no wire `kid`; mix-up is prevented by the DB join.
 

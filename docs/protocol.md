@@ -1,6 +1,6 @@
 # Protocol — CapGlyph Credential & Stego Payload
 
-**Spec:** 1.0.0 · **Track:** Protocol (CTX-0041) · **Core:** `capglyph-core` 0.1.0
+**Spec:** 1.0.1 · **Track:** Protocol (CTX-0041) · **Core:** `capglyph-core` 0.1.0
 
 ---
 
@@ -60,20 +60,26 @@ See `consumption.md` for the exact `UPDATE … RETURNING` and the `credential_co
 
 `FrameHeader.payload_type` discriminates (same stack, different semantics):
 
-- `1 Credential` — opaque 128-bit `token_id` (default, recommended)
+- `1 Credential` — canonical CBOR `{0: bstr16 token_id}`, `flags=0` (default, recommended)
 - `2 Pointer` — locator capability (`capability_id` → encrypted object in store)
 - `3 Message` — small AEAD ciphertext (Beta, `1024+` carriers only)
 - `4 Locator` — learned 61-bit locator (TrustMark, `BCH_5`)
 
 ## 6. Failure precedence
 
-On `verify`/`consume`, check in order and return the first that fires (fail-closed):
+Trusted negotiation and key lookup precede envelope processing. For sealed
+bytes, check in order and stop on the first result:
 
-1. `E_VERSION_UNSUPPORTED` (before any MAC)
-2. `E_MALFORMED_FRAME` (CBOR structure, length, truncated tag)
-3. `E_AUTH_FAILED` (HMAC mismatch)
-4. policy (`E_EXPIRED`, `E_REVOKED`, `E_CONSUMED`) — requires DB lookup after crypto passes
-5. `E_TAMPERED` (ECC uncorrectable, correlation below threshold)
+1. missing 32-byte tag boundary → `E_MALFORMED_FRAME`;
+2. constant-time HMAC over opaque frame → `E_AUTH_FAILED` on mismatch;
+3. deterministic outer CBOR/shape/range/type/length → `E_MALFORMED_FRAME`;
+4. authenticated embedded version → `E_VERSION_UNSUPPORTED` when not 1;
+5. type semantics → `E_PAYLOAD_INVALID` for invalid Credential map/flags;
+6. policy (`E_EXPIRED`, `E_REVOKED`, `E_CONSUMED`);
+7. carrier/ECC (`E_TAMPERED`, `E_GEOMETRY_MISMATCH`).
+
+Unkeyed preflight is not authenticated verification. See
+`interoperability-profile.md` for the cross-product table.
 
 ## 7. Security properties explicitly provided / not provided
 

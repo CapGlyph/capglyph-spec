@@ -9,3 +9,5 @@ target/
 # local preview
 _site/
 public/
+.carryctx/config.local.toml
+.worktrees/

@@ -1,12 +1,18 @@
 # Credential Format — CapGlyph Credential & Pointer Envelope
 
-**Spec:** 1.0.0 · **Track:** Credential Format (CTX-0041)
+**Spec:** 1.0.1 · **Track:** Credential Format (CTX-0041)
 
 ---
 
 ## 1. Design principle: opaque bearer
 
-The image carries **only the opaque bearer secret**; all mutable policy (`expiry`, `quota`, `revocation`, `scope`) lives in the server DB (`covers`/`credentials` tables per `credential-design.md`). This avoids split-brain between image claims and DB truth and fits the `512×512` DCT `56 B` logical ceiling after `CBOR 6 B + HMAC 32 B + ECC`.
+The image carries **only the opaque bearer secret**, wrapped in the exact v1
+Credential map; all mutable policy (`expiry`, `quota`, `revocation`, `scope`)
+lives in the server DB (`covers`/`credentials` tables per
+`credential-design.md`). This avoids split-brain between image claims and DB
+truth. The resulting canonical sealed envelope is 57 bytes before ECC and does
+not fit the measured `512×512` DCT 56-byte logical ceiling; see
+`image-binding.md` §6.3.
 
 Payload on the wire is therefore small and fixed-size:
 
@@ -21,15 +27,16 @@ Payload on the wire is therefore small and fixed-size:
 
 Integer keys (preferred) — bytewise CBOR-sorted, definite-length:
 
-| Key | Field        | Type                       | Notes                                                                                      |
-| --- | ------------ | -------------------------- | ------------------------------------------------------------------------------------------ |
-| `0` | `token_id`   | `bstr` 16 B                | `128-bit` CSPRNG, the only secret in the image. `token_hash = SHA256(token_id)` is stored. |
-| `1` | `issuer`     | `tstr` (optional)          | e.g. `capglyph.example` — informational, not trusted without DB join                       |
-| `2` | `not_before` | `uint` unix sec (optional) | default `0` (valid immediately)                                                            |
-| `3` | `expires_at` | `uint` unix sec (optional) | absent → no expiry                                                                         |
-| `4` | `scope_hash` | `bstr` 16 B (optional)     | offline-signed profile only (`1024+`); v1 server-authoritative credentials omit this       |
+| Key | Field      | Type        | Notes                                                                                      |
+| --- | ---------- | ----------- | ------------------------------------------------------------------------------------------ |
+| `0` | `token_id` | `bstr` 16 B | `128-bit` CSPRNG, the only secret in the image. `token_hash = SHA256(token_id)` is stored. |
 
-v1 opaque profile uses **only key `0`** (`token_id`). Keys `1..4` are reserved for an offline `Ed25519` profile (`version 2`) at `1024+` carriers, where the map is signed over the CBOR encoding and the tag is replaced by the 64 B Ed25519 signature plus `kid`.
+The v1 map has exactly this one field. Its deterministic encoding is 19 bytes:
+`a1 00 50 || token_id`. Empty/opaque payloads, raw 16-byte token bytes, extra or
+duplicate keys, text-key aliases, wrong token lengths, tagged/indefinite CBOR,
+and non-minimal encodings are `E_PAYLOAD_INVALID`. Fields such as issuer,
+not-before, expiry, and scope remain server policy; future offline profiles
+require their own negotiated version/profile and MUST NOT extend v1 silently.
 
 ## 3. Framing header (outer envelope)
 
@@ -44,7 +51,7 @@ pub enum PayloadType { Credential=1, Pointer=2, Message=3, Locator=4 }
 | -------------- | ----- | ------------------------------------------------ | ------------------------------------------------ |
 | `version`      | 1 B   | `1`                                              | any other → `E_VERSION_UNSUPPORTED`              |
 | `payload_type` | 1 B   | `1` (Credential) for this doc; `2` for pointer   | `1..4` else `E_MALFORMED_FRAME`                  |
-| `flags`        | 1 B   | `0` (bit0=encrypted, bit1=compressed — reserved) | opaque, preserved                                |
+| `flags`        | 1 B   | `0`                                              | any other Credential value → `E_PAYLOAD_INVALID` |
 | `payload_len`  | 2 B   | `len(payload CBOR)`                              | `MUST == payload.len()` else `E_MALFORMED_FRAME` |
 
 Sealed wire: `CborFrame || tag` where `CborFrame = CBOR([version, type, flags, payload_len, payload_bstr])` and `tag = HMAC_SHA256(K_mac, CborFrame)` (32 B). `ciborium` deterministic encoding (shortest int, definite lengths) is normative.
@@ -65,16 +72,18 @@ When `payload_type == 2` (Pointer), the CBOR payload is a pointer descriptor:
 
 ## 6. Encoding example (valid vector)
 
-Payload `16 B` = `000102030405060708090a0b0c0d0e0f` (hex).
+Token `16 B` = `000102030405060708090a0b0c0d0e0f`; canonical payload is
+`a10050000102030405060708090a0b0c0d0e0f` (hex).
 
 ```json
 {
-  "payload_hex": "000102030405060708090a0b0c0d0e0f",
+  "token_id_hex": "000102030405060708090a0b0c0d0e0f",
+  "payload_hex": "a10050000102030405060708090a0b0c0d0e0f",
   "payload_type": "Credential",
   "flags": 0,
   "version": 1,
   "k_mac_hex": "42…42 (32×0x42)",
-  "cbor_frame_hex": "… (CborFrame for [1,1,0,16, h'0001…0f'])",
+  "cbor_frame_hex": "850101001353a10050000102030405060708090a0b0c0d0e0f",
   "tag_hex": "HMAC_SHA256(k_mac, cbor_frame)",
   "sealed_hex": "cbor_frame || tag"
 }
