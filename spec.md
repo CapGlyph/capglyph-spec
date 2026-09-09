@@ -6,6 +6,8 @@
 **Editors:** CapGlyph Authors · **License:** Apache-2.0
 **Repos:** `CapGlyph/capglyph-spec` (this spec) · `CapGlyph/capglyph-core` (reference impl) · `CapGlyph/capglyph-test-vectors` (fixtures)
 
+> Documentation audit notice (non-normative): current implementation gaps and internal contradictions are listed in [implementation-reconciliation.md](docs/implementation-reconciliation.md). Byte-level conformance alone does not establish all requirements below; this notice does not amend normative clauses.
+
 ---
 
 ## 1. Scope & conformance language
@@ -174,13 +176,13 @@ See `docs/protocol.md` for the full HTTP surface and `docs/policy.md` for rotati
 
 All errors are **fail-closed**: no partial credential, no quota burn, no side effect. `docs/error-semantics.md` tabulates the codes; the wire code list is:
 
-| Code                      | Category | Wire signal                                                                            | Retryable                                 |
-| ------------------------- | -------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `E_VERSION_UNSUPPORTED`   | version  | no mutual negotiated version, or authenticated canonical frame has `version != 1`      | no — upgrade client                       |
-| `E_KEY_NOT_FOUND`         | keying   | trusted `kid`/`key_id` cannot resolve; no zero-key fallback                            | no                                        |
-| `E_MALFORMED_FRAME`       | framing  | missing tag boundary or deterministic outer CBOR/shape/range/type/length failure       | no                                        |
-| `E_AUTH_FAILED`           | crypto   | constant-time `HMAC` mismatch before CBOR decode                                       | no                                        |
-| `E_PAYLOAD_INVALID`       | payload  | authenticated canonical frame violates type profile, including Credential map/flags    | no                                        |
+| Code                      | Category | Wire signal                                                                         | Retryable                                 |
+| ------------------------- | -------- | ----------------------------------------------------------------------------------- | ----------------------------------------- |
+| `E_VERSION_UNSUPPORTED`   | version  | no mutual negotiated version, or authenticated canonical frame has `version != 1`   | no — upgrade client                       |
+| `E_KEY_NOT_FOUND`         | keying   | trusted `kid`/`key_id` cannot resolve; no zero-key fallback                         | no                                        |
+| `E_MALFORMED_FRAME`       | framing  | missing tag boundary or deterministic outer CBOR/shape/range/type/length failure    | no                                        |
+| `E_AUTH_FAILED`           | crypto   | constant-time `HMAC` mismatch before CBOR decode                                    | no                                        |
+| `E_PAYLOAD_INVALID`       | payload  | authenticated canonical frame violates type profile, including Credential map/flags | no                                        |
 | `E_INSUFFICIENT_CAPACITY` | carrier  | sealed+ECC exceeds block budget                                                     | no — choose larger cover or `BCH`         |
 | `E_EXPIRED`               | policy   | `now()` outside `[not_before, expires_at]`                                          | no                                        |
 | `E_REVOKED`               | policy   | `revoked_at IS NOT NULL`                                                            | no                                        |
